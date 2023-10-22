@@ -1,0 +1,8 @@
+colorama~=0.4.6
+rich~=13.6.0
+PyYAML~=6.0.1
+tqdm~=4.66.1
+requests~=2.31.0
+lxml~=4.9.3
+pathos~=0.3.1
+cryptography~=41.0.4
