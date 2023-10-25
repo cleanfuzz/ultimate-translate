@@ -11,11 +11,11 @@
 ## Установка:
 
 1. Необходимо клонировать репозиторий. В командной строке:
-```
-git clone https://github.com/cleanfuzz/ultimate-translate ultimate-translate 
-
-cd ultimate-translate
-```
+    ```
+    git clone https://github.com/cleanfuzz/ultimate-translate ultimate-translate 
+   
+    cd ultimate-translate
+    ```
 
 2. Для наилучшей совместимости требуется активировать виртуальное окружение. В командной строке:
     - На `Windows` в PowerShell:

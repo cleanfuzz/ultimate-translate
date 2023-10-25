@@ -1,8 +1,9 @@
 import logging
-from typing import Optional
 from rich.console import Console
 from rich.logging import RichHandler
 import colorama as color
+from time import sleep
+from arg_values import arguments
 
 console = Console()
 
@@ -14,16 +15,45 @@ def init_term_for_ansi_colors():
     color.just_fix_windows_console()
 
 
-def enable_debug_output(debug_enabled: bool = False):
-    if debug_enabled == True:
-        logging.basicConfig(
-            level="NOTSET",
-            format="%(message)s",
-            datefmt="[%X ]",
-            handlers=[RichHandler(rich_tracebacks=True)]
-        )
+def comfort_output(time: int | None = None, fasten_output: bool | None = False):
+    """
+    Небольшая функция, чтобы сделать вывод
+    более комфортным за счёт задержки между
+    блоками сообщений.
+    """
+
+    # Присвоение значения по умолчанию.
+    if arguments.comfort_output_time is None:
+        milisecs_to_sleep = 500
     else:
-        pass
+        milisecs_to_sleep = arguments.comfort_output_time
+
+    if fasten_output is True:
+        # Превращение целого числа в стотысячные доли секунды (миллисекунды / 100).
+        # Для использования в циклах, где отображается очень много информации.
+        milisecs_to_sleep = (float(milisecs_to_sleep) / 1000) / 100
+    else:
+        # Превращение целого числа в тысячные доли секунды (миллисекунды).
+        milisecs_to_sleep = float(milisecs_to_sleep) / 1000
+
+    # Получение опции, отвечающей за мгновенный вывод текста.
+    if arguments.no_comfort_output is False:
+        sleep(milisecs_to_sleep)
+
+
+class DebugOutput:
+    def __init__(self, debug_enabled: bool):
+        self.debug_enabled = debug_enabled
+
+    def enable_debug_output(self):
+        # TODO: задокументировать эту функцию
+        if self.debug_enabled is True:
+            logging.basicConfig(
+                level="NOTSET",
+                format="%(message)s",
+                datefmt="[%X ]",
+                handlers=[RichHandler(rich_tracebacks=True)]
+            )
 
 
 class PrintMessagePrefix:
@@ -54,22 +84,22 @@ msg_prefix = PrintMessagePrefix(debug_style='bold chartreuse3', info_style='bold
                                 warn_style='bold gold1', error_style='bold underline deep_pink2')
 
 
-def print_debug(what_to_print, sep=' ', end='\n', style: Optional[str] = None, highlight=True):
+def print_debug(what_to_print, sep=' ', end='\n', style: str | None = None, highlight=True):
     msg_prefix.debug()
     console.print(what_to_print, sep=sep, end=end, style=style, highlight=highlight)
 
 
-def print_info(what_to_print, sep=' ', end='\n', style: Optional[str] = None, highlight=True):
+def print_info(what_to_print, sep=' ', end='\n', style: str | None = None, highlight=True):
     msg_prefix.info()
     console.print(what_to_print, sep=sep, end=end, style=style, highlight=highlight)
 
 
-def print_warn(what_to_print, sep=' ', end='\n', style: Optional[str] = None, highlight=True):
+def print_warn(what_to_print, sep=' ', end='\n', style: str | None = None, highlight=True):
     msg_prefix.warn()
     console.print(what_to_print, sep=sep, end=end, style=style, highlight=highlight)
 
 
-def print_error(what_to_print, sep=' ', end='\n', style: Optional[str] = None, highlight=True):
+def print_error(what_to_print, sep=' ', end='\n', style: str | None = None, highlight=True):
     msg_prefix.error()
     console.print(what_to_print, sep=sep, end=end, style=style, highlight=highlight)
 
