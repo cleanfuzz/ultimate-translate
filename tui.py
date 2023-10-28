@@ -1,4 +1,6 @@
 import logging
+import sys
+
 from rich.console import Console
 from rich.logging import RichHandler
 import colorama as color
@@ -7,6 +9,7 @@ from arg_values import arguments
 
 console = Console()
 
+err_console = Console(file=sys.stderr)
 
 def init_term_for_ansi_colors():
     """
@@ -23,10 +26,12 @@ def comfort_output(time: int | None = None, fasten_output: bool | None = False):
     """
 
     # Присвоение значения по умолчанию.
-    if arguments.comfort_output_time is None:
+    if time is None and arguments.comfort_output_time is None:
         milisecs_to_sleep = 500
-    else:
+    elif time is None and arguments.comfort_output_time is not None:
         milisecs_to_sleep = arguments.comfort_output_time
+    else:
+        milisecs_to_sleep = time
 
     if fasten_output is True:
         # Превращение целого числа в стотысячные доли секунды (миллисекунды / 100).
@@ -101,7 +106,7 @@ def print_warn(what_to_print, sep=' ', end='\n', style: str | None = None, highl
 
 def print_error(what_to_print, sep=' ', end='\n', style: str | None = None, highlight=True):
     msg_prefix.error()
-    console.print(what_to_print, sep=sep, end=end, style=style, highlight=highlight)
+    err_console.print(what_to_print, sep=sep, end=end, style=style, highlight=highlight)
 
 
 def rich_print(data_to_print, style='', sep=' ', end='\n', highlight=True, width: int = 110):

@@ -1,3 +1,5 @@
+from typing import Any
+
 import yaml_keygen_utf_8
 import yaml
 import translate
@@ -12,7 +14,7 @@ def get_nested_dict_value(dictionary, keys):
     return dictionary
 
 
-def get_most_nested_yaml_keys(file_to_read, separator='::'):
+def get_most_nested_yaml_keys(file_to_read, separator='::') -> list[str]:
     """
     Получить список всех ключей YAML-файла, имеющих только одно значение (максимально вложенные ключи).
     Функция использует библиотеку yaml_keygen с единственной правкой от меня: читает только UTF-8.
@@ -23,7 +25,7 @@ def get_most_nested_yaml_keys(file_to_read, separator='::'):
     return yaml_key_gen.get_keys(data=yaml_file, sep=separator)
 
 
-def split_string(string_to_split, separator):
+def split_string(string_to_split, separator) -> list[str]:
     """
     Вернуть строку-аргумент в виде списка.
     Разделитель - параметр `separator`.
@@ -31,7 +33,7 @@ def split_string(string_to_split, separator):
     return list(string_to_split.split(separator))
 
 
-def get_dict_value_by_string(keys_list, dictionary_to_read):
+def get_dict_value_by_string(keys_list, dictionary_to_read) -> Any:
     """
     Вход - список yaml-ключей и словарь.
     Выход - значение в словаре по последовательности ключей.
