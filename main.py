@@ -20,7 +20,7 @@ if __name__ == "__main__":
     # Подготавливаем терминал для работы с ANSI-цветами
 
     # Получение и обработка аргументов командной строки
-    args = work_with_args.work_with_cli_args()
+    args = args.work_with_cli_args()
 
     # Обрабатываем файлы и переводим их
     parse_yaml.manipulate_input_files(args.files, args.dest_lang, args.src_lang, args.sep, args.no_cache)
