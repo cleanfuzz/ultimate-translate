@@ -1,10 +1,11 @@
 import os
 import sys
 import yaml
-from tui import DebugOutput, print_debug, print_info, print_error, comfort_output
+from tui import DebugOutput, print_debug, print_info, print_error, comfort_output, rich_print
 from arg_values import arguments
 from translate import get_working_trans_services
 import click
+from parse_yaml import get_most_nested_yaml_keys
 
 
 def work_with_cli_args():
@@ -35,6 +36,43 @@ def work_with_cli_args():
     return arguments
 
 
+# Небольшой костыль для получения первого входного файла
+# еще до его обработки.
+@click.command()
+@click.option('-d', '--destination-language',
+              type=str, default=None)
+@click.option('-s', '--source-language',
+              type=str, default=None)
+@click.option('--debug', is_flag=True, default=False)
+@click.option('--separator', type=str, default='::')
+@click.option('--no-cache', is_flag=True, default=False)
+@click.option('--no-comfort-output', is_flag=True,
+              default=False)
+@click.option('-t', '--output-time', default=500,
+              type=click.IntRange(50, 5000))
+@click.option('-S', '--services-to-try', default=None,
+              multiple=True, type=click.STRING)
+@click.option('-T', '--tags-to-try', default=None,
+              multiple=True, type=click.STRING)
+@click.argument('input_files',
+                type=click.Path(exists=True), nargs=-1)
+def get_tags_from_input_file(separator, input_files, *args, **kwargs) -> str:
+
+    try:
+        first_input_file = input_files[0]
+
+        with open(os.path.abspath(first_input_file), 'r', encoding='utf-8') as file:
+            yaml.safe_load(file)
+            valid_keys = get_most_nested_yaml_keys(file_to_read=first_input_file, separator=separator)
+            return rf'{valid_keys}'
+    except Exception as exc:
+        sys.stderr.write('Ошибка! Не могу прочитать файл!\n')
+        sys.stderr.write(f'Название некорректного файла, который вы указали: "{file}"\n')
+        sys.stderr.write('Программа завершает работу... (2)\n\n')
+        sys.stderr.write(f'ERROR: {str(exc)}')
+        sys.exit(2)
+
+
 def get_all_valid_trans_services() -> list[str]:
     # TODO: сделать документацию.
     services_to_try_choices = get_working_trans_services() + ', *'
@@ -48,6 +86,7 @@ def get_all_valid_trans_services() -> list[str]:
 
 def validate_trans_services_pre_choice(ctx, param, value) -> list[str]:
     # TODO: сделать документацию.
+
     services = str(value)
 
     try:
@@ -60,13 +99,51 @@ def validate_trans_services_pre_choice(ctx, param, value) -> list[str]:
         services.pop(-1)
 
         for i in range(0, len(services)):
-            if services[i] not in get_all_valid_trans_services():
+            if (
+                    services[i] is None or services[i] == '' or
+                    services[i] == [] or
+                    services[i] not in get_all_valid_trans_services()
+            ):
                 raise click.BadParameter(
                     str(print_error(f'Некорректный аргумент -S / --services-to-try: {services}!')) +
                     str(print_error(f'Список поддерживаемых значений: \n{get_all_valid_trans_services()}'))
                 )
 
         return services
+
+    except Exception as e:
+        raise click.BadParameter(str(e)) from e
+
+
+def validate_tags_to_trans(ctx, param, value) -> list[str]:
+    # TODO: сделать документацию.
+
+    tags = str(value)
+
+    try:
+
+        symbols_to_remove = [' ', '[', ']', '(', ')', '"', "'"]
+
+        for symbol in symbols_to_remove:
+            tags = tags.replace(symbol, '')
+
+        tags = tags.split(',')
+
+        tags.pop(-1)
+
+        valid_keys = get_tags_from_input_file.main(standalone_mode=False)
+
+        for i in range(0, len(tags)):
+
+            if tags[i] is None or tags[i] == '' or tags[i] == [] or tags[i] not in valid_keys:
+                raise click.BadParameter(
+                    str(print_error(f'Некорректный аргумент -T / --tags-to-try: {tags}!')) +
+                    str(print_error('Заметьте, аргумент -T работает только с одним входным файлом.')) +
+                    str(print_error('Список поддерживаемых значений для первого файла:')) +
+                    str(rich_print(valid_keys, highlight=False, style='bold deep_pink2'))
+                )
+
+        return tags
 
     except Exception as e:
         raise click.BadParameter(str(e)) from e
@@ -113,21 +190,48 @@ def validate_trans_services_pre_choice(ctx, param, value) -> list[str]:
               metavar='SERVICES', multiple=True, type=click.STRING,
               callback=validate_trans_services_pre_choice,
               help=f'''Список сервисов перевода через запятую и пробел, 
-                        которые Вы хотели бы опробовать в действии (пример: -S 'google, bing, modernMt'). 
-                        Список доступных значений можно получить следующим образом:
-                        `python {sys.argv[0]} --services-to-try NOT_EXISTS`). 
-                        Примечание: Вы можете ввести эти значения по ходу программы.''')
+                       которые Вы хотели бы опробовать в действии (пример: -S 'google, bing, modernMt'). 
+                       Список доступных значений можно получить следующим образом:
+                       `python {sys.argv[0]} --services-to-try NOT_EXISTS`). 
+                       Примечание: Вы можете ввести эти значения по ходу программы.''')
+@click.option('--tags-to-try', '-T', 'tags_to_trans', default=None,
+              metavar='TAG1{SEP}..{SEP}TAGn', multiple=True, type=click.STRING,
+              callback=validate_tags_to_trans,
+              help=f'''
+Список тегов через разделитель (по умолчанию :: ), 
+на примере которых Вы хотели бы сравнить сервисы перевода.
+Работает только с одним входным файлом. :<(             
+Список доступных значений можно получить,
+сложив строки ключей YAML-файла через разделитель.
+Пример:\n\b\n
+`python {sys.argv[0]} --separator='::' -T 'foo::bar, test::devel::foo::bar' ./foobar.yml`\n\b\n
+Где ./foobar.yml:\n\b
+
+---\n\b\n
+foo:\n\b\n
+    bar:\n\b\n
+        - 'FOOBAREST FOO BAR'\n\b\n
+ 
+test:\n\b\n
+    devel:\n\b\n
+        foo:\n\b\n
+            bar:\n\b\n
+               - 'FOOBAR is currently in development and testing mode.'\n\b\n
+
+Примечание: Вы можете ввести эти значения по ходу программы.''')
 # Список файлов через пробел, которые нужно перевести.
 @click.argument('files', type=click.Path(exists=True), required=True, nargs=-1)
 def parse_cli_args(destination_language, source_language, debug,
                    separator, no_cache, no_comfort_output,
-                   comfort_output_time, services_pre_choice, files) -> None:
+                   comfort_output_time, services_pre_choice, tags_to_trans,
+                   files) -> None:
     """
     Эта функция получает аргументы командной строки и проверяет их.
     Это действие происходит через декораторы библиотеки click.
     """
 
     # Присваиваем значения аргументов командной строки объекту arguments.
+    arguments.files = files
     arguments.dest_lang = destination_language
     arguments.src_lang = source_language
     arguments.debug = debug
@@ -136,8 +240,7 @@ def parse_cli_args(destination_language, source_language, debug,
     arguments.no_comfort_output = no_comfort_output
     arguments.comfort_output_time = comfort_output_time
     arguments.services_pre_choice = services_pre_choice
-    arguments.files = files
-
+    arguments.tags_to_trans = tags_to_trans
 
 
 def set_default_trans_langs(dest_lang, source_lang):
@@ -201,6 +304,6 @@ def validate_input_files(input_files):
                 sys.stderr.write(f'ERROR: {str(exc)}')
                 sys.exit(2)
             else:
-                print_info(f'Ваш файл ("[green]{os.path.abspath(file)}[/green]") может быть прочитан.',
+                print_info(f'Ваш файл ("[green]{os.path.abspath(file)}[/green]") может быть прочитан.\n',
                            style='bold', highlight=False)
             comfort_output()

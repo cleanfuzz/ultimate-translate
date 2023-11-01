@@ -124,11 +124,11 @@ def prompt_for_trans_services(current_file: os.PathLike) -> list[str]:
         f'[cyan]{os.path.abspath(current_file)}>[/cyan] ',
         style='bold green', end='')
     if arguments.services_pre_choice is None:
-        trans_services_to_test = (input()).split(', ')
+        trans_services_to_test = input().replace(' ', '').split(',')
     else:
         trans_services_to_test = arguments.services_pre_choice
-        rich_print(f'Вы ввели следующие значения как аргументы командной строки: {trans_services_to_test}')
-        comfort_output(1500)
+        rich_print(f'Вы ввели следующие значения как аргументы командной строки: \n{trans_services_to_test}')
+        comfort_output(slow_output=True)
 
     if '*' in trans_services_to_test:
         trans_services_to_test = get_working_trans_services(get_list=True)
@@ -136,14 +136,16 @@ def prompt_for_trans_services(current_file: os.PathLike) -> list[str]:
     return trans_services_to_test
 
 
-def prompt_for_yaml_tags(yaml_keys: list[str], current_file: str | os.PathLike, sep) -> list[str]:
+def prompt_for_yaml_tags(yaml_keys: list[str],
+                         current_file: str | os.PathLike,
+                         sep, file_index: int) -> list[str]:
     """
     Спросить пользователя про YAML-теги,
     на примере которых он хотел бы сравнить
     варианты переводов разных сервисов.
     Возвращает список тегов.
     """
-    # TODO: Сделать оператор '*', сделать '> help', задокументировать функцию
+    # TODO: Сделать оператор '*', сделать '> help'
 
     rich_print(
         f'\nТекущий файл: "{os.path.abspath(current_file)}" \n'
@@ -163,7 +165,13 @@ def prompt_for_yaml_tags(yaml_keys: list[str], current_file: str | os.PathLike, 
         f'например: [cyan]settings{sep}user{sep}debug_on, runtime{sep}config{sep}color_off, action{sep}do[/cyan]\n'
         f'[cyan]{os.path.abspath(current_file)}>[/cyan] ',
         style='bold green', end='')
-    reference_tags_list = list(input().split(', '))
+
+    if arguments.tags_to_trans is not None and file_index == 0:
+        reference_tags_list = arguments.tags_to_trans
+        rich_print(f'Вы ввели следующие значения как аргументы командной строки: \n{reference_tags_list}')
+        comfort_output(slow_output=True)
+    else:
+        reference_tags_list = input().replace(' ', '').split(',')
     print('\n', end='')
     return reference_tags_list
 
@@ -196,7 +204,7 @@ def prompt_for_translation_variants(dest_lang: str, src_lang: str, yaml_keys: li
     # выбранных пользователем в функции `prompt_for_trans_services`;
     # затем берет следующий тег, цикл повторяется.
     # Получение строки тегов с разделителем из списка строк YAML-тегов.
-    for string_key in yaml_keys:
+    for key_count, string_key in enumerate(yaml_keys):
         # Итерация по списку сервисов перевода, выбранным пользователем.
         for service, transed_value_style in zip(services, transed_value_style_list):
             # Получаем значение из YAML-тега по строке с разделителем.
@@ -205,56 +213,64 @@ def prompt_for_translation_variants(dest_lang: str, src_lang: str, yaml_keys: li
                 dictionary_to_read=full_yaml_dict)
 
             # PROMPT-LINE.
-            rich_print(f'{os.path.abspath(current_file)}> [Текущий сервис перевода: {service.upper()}] >>',
+            rich_print(f'{os.path.abspath(current_file)}> [Текущий сервис перевода: '
+                       f'[italic magenta]{service.upper()}[/italic magenta]] >>',
                        style='bold cyan')
             # Вывод списка ключей к текущему тегу.
             rich_print(f'[[ {string_key} ]]:', style='bold tan underline', highlight=False)
             # Вывод перевода текущего тега со случайным стилем.
-            print_debug(f'STYLE: {transed_value_style}\n')
             rich_print(translate_value(yaml_value, dest_lang, src_lang, sep, service, no_cache) + '\n',
                        style=transed_value_style, highlight=False)
 
         # Напечатать разделитель, показывающий, что тег переведен всеми выбранными сервисами.
-        print_info(
-            f'Тег №{yaml_keys.index(string_key)} ({string_key}) переведен всеми выбранными сервисами.',
-            highlight=False)
-        print_info('Начинаю перевод следующего тега.')
-        rich_print('-------------------------------------------------------------------------------------\n',
-                   highlight=False)
+        # Если был переведен последний тег, сказать, что был переведен последний тег.
+        if string_key == yaml_keys[-1]:
+            print_info(
+                f'Последний выбранный Вами тег (№{key_count + 1}, '
+                f'{string_key}) переведен всеми выбранными сервисами.',
+                highlight=False)
+        else:
+            print_info(
+                f'Тег №{key_count + 1} ({string_key}) переведен всеми выбранными сервисами.',
+                highlight=False)
+            print_info('Начинаю перевод следующего тега.')
+            rich_print('-------------------------------------------------------------------------------------\n',
+                       highlight=False)
 
     # На выходе из цикла спросить желаемый вариант перевода.
     chosen_services = ', '.join(chosen_services)
-    # rich_print(
-    #     f'\nТекущий файл: "{os.path.abspath(current_file)}" \n'
-    #     f'Пожалуйста, выберите сервисы, результаты перевода которых Вы хотели бы записать в файл.\n'
-    #     f'Выбранные Вами раннее варианты:\n',
-    #     style='bold blue')
-    # rich_print(f'{chosen_services}\n', style='bold cyan', highlight=False, width=80)
     rich_print(
-        f'Введите сервисы через запятую и пробел ", ",\n'
-        f'результат перевода которых будет записан в файлы.\n'
-        f'Выбранные Вами раннее варианты:',
-        style='bold green')
+        f'\nТекущий файл: "{os.path.abspath(current_file)}" \n'
+        f'Пожалуйста, выберите сервисы, результат перевода которых вы хотели бы записать в файл(ы). \n'
+        f'Выбранные Вами ранее сервисы:\n',
+        style='bold blue')
     rich_print(f'{chosen_services}\n', style='bold cyan', highlight=False, width=80)
-    rich_print(f'{os.path.abspath(current_file)}>', end='', style='bold cyan')
+    comfort_output()
+    print_info('Можно выбрать и тот сервис, перевод которого не был выведен на экран.', highlight=False)
+    print_info('Список всех вариантов можно увидеть выше, перед первым выбором сервисов.', highlight=False)
+    rich_print(
+        f'\nВведите сервисы через запятую и пробел ", ":\n'
+        f'[cyan]{os.path.abspath(current_file)}>[/cyan] ',
+        style='bold green', end='')
 
-    final_choice_trans_services = list(input().split(', '))
+    final_choice_trans_services = input().replace(' ', '').split(',')
     return final_choice_trans_services
 
 
 def interactive_choices(destination_language: str, source_language: str,
                         separator: str, most_nested_yaml_keys: list[str],
-                        current_yaml_file: os.PathLike, yaml_dict: dict, no_cache: bool):
+                        current_yaml_file: os.PathLike, yaml_dict: dict, no_cache: bool,
+                        file_index: int) -> list[str]:
     """
     Вызвать интерактивный интерфейс выбора сервиса - переводчика.
     """
 
     trans_services = prompt_for_trans_services(current_yaml_file)
-    yaml_keys_to_translate = prompt_for_yaml_tags(most_nested_yaml_keys, current_yaml_file, separator)
-    prompt_for_translation_variants(destination_language, source_language,
-                                    yaml_keys_to_translate, trans_services,
-                                    yaml_dict, separator, current_yaml_file,
-                                    no_cache, trans_services)
+    yaml_keys_to_translate = prompt_for_yaml_tags(most_nested_yaml_keys, current_yaml_file, separator, file_index)
+    return prompt_for_translation_variants(destination_language, source_language,
+                                           yaml_keys_to_translate, trans_services,
+                                           yaml_dict, separator, current_yaml_file,
+                                           no_cache, trans_services)
 
 
 def translate_value(value_to_translate: Any,

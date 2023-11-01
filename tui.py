@@ -18,7 +18,8 @@ def init_term_for_ansi_colors():
     color.just_fix_windows_console()
 
 
-def comfort_output(time: int | None = None, fasten_output: bool | None = False):
+def comfort_output(time: int | None = None, fasten_output: bool | None = False,
+                   slow_output: bool | None = False):
     """
     Небольшая функция, чтобы сделать вывод
     более комфортным за счёт задержки между
@@ -37,6 +38,10 @@ def comfort_output(time: int | None = None, fasten_output: bool | None = False):
         # Превращение целого числа в стотысячные доли секунды (миллисекунды / 100).
         # Для использования в циклах, где отображается очень много информации.
         milisecs_to_sleep = (float(milisecs_to_sleep) / 1000) / 100
+    elif slow_output is True:
+        # Для использования в важных блоках информации,
+        # где необходимо дать пользователю все осмыслить.
+        milisecs_to_sleep = (float(milisecs_to_sleep) / 1000) * 3
     else:
         # Превращение целого числа в тысячные доли секунды (миллисекунды).
         milisecs_to_sleep = float(milisecs_to_sleep) / 1000
