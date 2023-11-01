@@ -4,11 +4,9 @@
 # Скрипт на Python, который переведет для Вас все значения YAML-файла.                            ^^^
 # Попутно даст Вам выбрать из разных вариантов перевода.                                          ^^^
 # ---------------------------------------------------------------------------------------------------
-
-
-
+import files
 import parse_yaml
-import cli_arguments
+import args
 import tui
 
 
@@ -20,25 +18,8 @@ if __name__ == "__main__":
     # Подготавливаем терминал для работы с ANSI-цветами
     tui.init_term_for_ansi_colors()
 
-    # Получаем аргументы командной строки
-    args = cli_arguments.parse_cli_args()
-
-    # Включаем режим отладки по желанию пользователя
-    debug = args.debug
-    tui.enable_debug_output(debug_enabled=debug)
-
-    # Присваиваем переменным аргументы командной строки
-    dest_lang = args.destination_language
-    source_lang = args.source_language
-    yaml_files = args.files
-    separator_string = args.separator
-
-    # Получаем значения по умолчанию в язык назначения перевода и язык файла,
-    # если не указаны пользователем
-    dest_lang, source_lang = cli_arguments.validate_trans_langs(dest_lang, source_lang)
-
-    # Проверяем, что файлы существуют и их возможно прочитать
-    cli_arguments.validate_input_files(yaml_files)
+    # Получение и обработка аргументов командной строки
+    args.work_with_cli_args()
 
     # Обрабатываем файлы и переводим их
-    parse_yaml.manipulate_input_files(yaml_files, dest_lang, source_lang, separator_string)
+    files.manipulate_input_files()

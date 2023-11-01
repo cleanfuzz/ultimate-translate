@@ -2,3 +2,4 @@
 venv/*
 foobar*
 .idea/*
+.sourcery.yaml
