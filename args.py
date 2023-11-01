@@ -84,7 +84,7 @@ def get_all_valid_trans_services() -> list[str]:
     return services_to_try_choices.split(',')
 
 
-def validate_trans_services_pre_choice(ctx, param, value) -> list[str]:
+def validate_trans_services_pre_choice(ctx, param, value) -> list[str] | None:
     # TODO: сделать документацию.
 
     services = str(value)
@@ -109,13 +109,17 @@ def validate_trans_services_pre_choice(ctx, param, value) -> list[str]:
                     str(print_error(f'Список поддерживаемых значений: \n{get_all_valid_trans_services()}'))
                 )
 
-        return services
+        if services == []:
+            return None
+        else:
+            return services
+
 
     except Exception as e:
         raise click.BadParameter(str(e)) from e
 
 
-def validate_tags_to_trans(ctx, param, value) -> list[str]:
+def validate_tags_to_trans(ctx, param, value) -> list[str] | None:
     # TODO: сделать документацию.
 
     tags = str(value)
@@ -143,7 +147,10 @@ def validate_tags_to_trans(ctx, param, value) -> list[str]:
                     str(rich_print(valid_keys, highlight=False, style='bold deep_pink2'))
                 )
 
-        return tags
+        if tags == []:
+            return None
+        else:
+            return tags
 
     except Exception as e:
         raise click.BadParameter(str(e)) from e
