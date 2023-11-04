@@ -4,7 +4,7 @@ import sys
 from typing import Any
 import translators_fix as trans
 from translators_fix.server import TranslatorError
-from tui import rich_print
+from tui import rich_print, input
 import colorama as color
 import parse_yaml
 from tui import print_debug, print_info, print_warn, print_error
@@ -76,6 +76,7 @@ def get_working_trans_services(get_list: bool | None = False) -> str | list[str]
     # Youdao - `Unsupported translation: from [en] to [ru]!`.
 
     bad_services = ['apertium', 'alibaba', 'argos', 'deepl',
+                    'cloudTranslation',
                     'elia', 'iflyrec', 'iflytek', 'judic',
                     'languageWire', 'lingvanex', 'niutrans',
                     'mglip', 'mirai', 'tilde', 'translateMe',
@@ -183,9 +184,14 @@ def prompt_for_translation_variants(dest_lang: str, src_lang: str, yaml_keys: li
     # sourcery skip: inline-immediately-returned-variable, simplify-boolean-comparison
     # TODO: Сделать оператор '*', сделать '> help', задокументировать функцию
 
+    if services == [] and yaml_keys == []:
+        return get_working_trans_services(get_list=True)
+    elif services[0] == '**skip**' and yaml_keys[0] == '**skip**':
+        return get_working_trans_services(get_list=True)
+
     # Вызвать процесс кеширования перевода, если не указан ключ командной строки.
     if no_cache is False:
-        print_info('Пожалуйста, подождите, пока пройдёт процесс кеширования.')
+        print_info('Пожалуйста, подождите, пока пройдет процесс кеширования.')
         print_info('Он необходим для быстрого перевода Ваших данных. Кеширование может занять несколько минут.')
         print_info('Вы можете отключить кеширование с помощью аргумента `[green]--no-cache[/green]`.\n\n')
 
@@ -288,7 +294,7 @@ def translate_value(value_to_translate: Any,
     except TranslatorError as Err:
         sys.stderr.write(color.Style.BRIGHT + color.Fore.RED + color.Back.BLACK
                          + '\nОШИБКА В МОДУЛЕ ПЕРЕВОДА!'
-                         + '\nПожалуйста, проверьте введённые Вами значения сервисов перевода на корректность!'
+                         + '\nПожалуйста, проверьте введенные Вами значения сервисов перевода на корректность!'
                          + '\nПрограмма завершает свою работу.\n'
                          + f'TRANSLATOR_ERROR\n {Err}'
                          + color.Style.RESET_ALL)

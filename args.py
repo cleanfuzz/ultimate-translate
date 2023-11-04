@@ -1,7 +1,7 @@
 import os
 import sys
 import yaml
-from tui import DebugOutput, print_debug, print_info, print_error, comfort_output, rich_print
+from tui import DebugOutput, print_debug, print_info, print_warn, print_error, comfort_output, rich_print, input
 from arg_values import arguments
 from translate import get_working_trans_services
 import click
@@ -57,7 +57,6 @@ def work_with_cli_args():
 @click.argument('input_files',
                 type=click.Path(exists=True), nargs=-1)
 def get_tags_from_input_file(separator, input_files, *args, **kwargs) -> str:
-
     try:
         first_input_file = input_files[0]
 
@@ -75,7 +74,7 @@ def get_tags_from_input_file(separator, input_files, *args, **kwargs) -> str:
 
 def get_all_valid_trans_services() -> list[str]:
     # TODO: сделать документацию.
-    services_to_try_choices = get_working_trans_services() + ', *'
+    services_to_try_choices = get_working_trans_services() + ', *, **skip**'
     symbols_to_remove = [' ', '[', ']', '"', "'"]
 
     for symbol in symbols_to_remove:
@@ -98,6 +97,9 @@ def validate_trans_services_pre_choice(ctx, param, value) -> list[str] | None:
         services = services.split(',')
         services.pop(-1)
 
+        services_to_show = get_all_valid_trans_services()
+        services_to_show.remove("**skip**")
+
         for i in range(0, len(services)):
             if (
                     services[i] is None or services[i] == '' or
@@ -106,7 +108,8 @@ def validate_trans_services_pre_choice(ctx, param, value) -> list[str] | None:
             ):
                 raise click.BadParameter(
                     str(print_error(f'Некорректный аргумент -S / --services-to-try: {services}!')) +
-                    str(print_error(f'Список поддерживаемых значений: \n{get_all_valid_trans_services()}'))
+                    str(print_error(f'Список поддерживаемых значений: \n'
+                                    f'{services_to_show}'))
                 )
 
         if services == []:
@@ -137,14 +140,21 @@ def validate_tags_to_trans(ctx, param, value) -> list[str] | None:
 
         valid_keys = get_tags_from_input_file.main(standalone_mode=False)
 
+        if valid_keys[-1] == ']':
+            valid_keys = valid_keys[:-1]
+            valid_keys += ", '**skip**']"
+
+        keys_to_show = valid_keys
+        keys_to_show = keys_to_show.replace(", '**skip**'", '')
+
         for i in range(0, len(tags)):
 
-            if tags[i] is None or tags[i] == '' or tags[i] == [] or tags[i] not in valid_keys:
+            if tags[i] is None or tags[i] == '' or tags == [] or tags[i] not in valid_keys:
                 raise click.BadParameter(
                     str(print_error(f'Некорректный аргумент -T / --tags-to-try: {tags}!')) +
                     str(print_error('Заметьте, аргумент -T работает только с одним входным файлом.')) +
                     str(print_error('Список поддерживаемых значений для первого файла:')) +
-                    str(rich_print(valid_keys, highlight=False, style='bold deep_pink2'))
+                    str(rich_print(keys_to_show, highlight=False, style='bold deep_pink2'))
                 )
 
         if tags == []:
@@ -179,7 +189,7 @@ def validate_tags_to_trans(ctx, param, value) -> list[str] | None:
 # Определяемый пользователем разделитель строк.
 @click.option('--separator', type=str, default='::', metavar='<STRING>',
               help='''Строка, используемая для разделения ключей при отображении YAML-файла.
-                   Значение по умолчанию: `::`''')
+                   Значение по умолчанию: `::`.''')
 # Отключить кеширование перевода по желанию пользователя.
 @click.option('--no-cache', is_flag=True, default=False,
               help='Отключить кеширование (кеширование ускоряет перевод, но может занимать до 5 минут).')
@@ -218,7 +228,7 @@ def validate_tags_to_trans(ctx, param, value) -> list[str] | None:
 foo:\n\b\n
     bar:\n\b\n
         - 'FOOBAREST FOO BAR'\n\b\n
- 
+
 test:\n\b\n
     devel:\n\b\n
         foo:\n\b\n
@@ -238,7 +248,7 @@ def parse_cli_args(destination_language, source_language, debug,
     """
 
     # Присваиваем значения аргументов командной строки объекту arguments.
-    arguments.files = files
+    arguments.files = list(files)
     arguments.dest_lang = destination_language
     arguments.src_lang = source_language
     arguments.debug = debug
@@ -297,8 +307,23 @@ def validate_input_files(input_files):
     """
     Данная функция проверяет, возможно ли прочитать файл(ы).
     При первой же неудаче выводит ошибку и выходит с кодом 2.
+    Также она удаляет пустые файлы из списка.
+    Если все файлы пусты, выходит с кодом 1.
     """
-    for file in input_files:
+    for count, file in enumerate(input_files):
+
+        if os.stat(file).st_size == 0:
+            print_warn(f'Ваш файл "{os.path.abspath(file)}" пуст.')
+            print_warn('Пропускаю его и удаляю из списка входных файлов.\n')
+            arguments.files.remove(file)
+
+            if os.stat(file).st_size == 0 and len(arguments.files) == 1 and count == len(input_files):
+                print_warn('Вы подали на вход только пустые файлы.')
+                print_warn('Программа завершает работу... (1)\n')
+                sys.exit(1)
+
+            continue
+
         with open(file, 'r', encoding='utf-8') as f:
             print_info('Проверяю выбранный Вами файл на наличие ошибок.')
             try:
